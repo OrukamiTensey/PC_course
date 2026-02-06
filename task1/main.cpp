@@ -9,19 +9,47 @@
 
 using namespace std;
 
-// 1. Time analysis mechanism
-class ScopedTimer {
-public:
-    ScopedTimer(const string& name) : name_(name), start_(chrono::high_resolution_clock::now()) {}
+// Visualising result
+struct Result
+{
+    string label;
+    long long ms;
+};
 
-    ~ScopedTimer() {
-        auto end = chrono::high_resolution_clock::now();
-        auto duration = chrono::duration_cast<chrono::milliseconds>(end - start_).count();
-        cout << "Time derived for [" << name_ << "]: " << duration << " ms" << endl;
+void drawTextGraph(const vector<Result>& results)
+{
+    cout << "\n--- Solution Speed Graphic ---\n";
+    cout << setw(25) << left << "Method" << " | " << setw(8) << "Time" << " | Histogram" << endl;
+    cout << string(60, '-') << endl;
+
+    long long maxTime = 0;
+    for (const auto& r : results) if (r.ms > maxTime) maxTime = r.ms;
+
+    for (const auto& r : results)
+    {
+        cout << setw(25) << left << r.label << " | "
+            << setw(5) << r.ms << " ms | ";
+
+        // Малюємо "багет", довжина якого залежить від часу
+        int barLength = (maxTime > 0) ? (int)(r.ms * 60 / maxTime) : 0;
+        for (int i = 0; i < barLength; ++i) cout << "|";
+        cout << endl;
     }
+    cout << string(60, '-') << endl;
+}
 
+// 1. Time analysis mechanism
+class ScopedTimer
+{
+public:
+    ScopedTimer(long long* outTime) : outTime_(outTime), start_(chrono::high_resolution_clock::now()) {}
+    ~ScopedTimer()
+    {
+        auto end = chrono::high_resolution_clock::now();
+        *outTime_ = chrono::duration_cast<chrono::milliseconds>(end - start_).count();
+    }
 private:
-    string name_;
+    long long* outTime_;
     chrono::time_point<chrono::high_resolution_clock> start_;
 };
 
@@ -78,34 +106,35 @@ int main()
     const int TOTAL_SIZE = ROWS * COLS;
     const int K = 5;
     vector<int> threadTests = { 3, 6, 12, 24, 48, 72 };
+    vector<Result> allResults;
 
-    cout << "--- Performance Test ---" << endl;
-    cout << "Matrix size: " << ROWS << "x" << COLS << " (Total: " << TOTAL_SIZE << ")" << endl;
-    cout << "Scalar K: " << K << endl;
-    cout << "-----------------------------------" << endl;
-
+    cout << "--- Performance Test Start ---" << endl;
     vector<int> A(TOTAL_SIZE), B(TOTAL_SIZE), C_seq(TOTAL_SIZE), C_par(TOTAL_SIZE);
 
-    cout << "Initializing matrices..." << endl;
+    cout << "Initializing..." << endl;
     fillMatrixFlat(A, TOTAL_SIZE);
-    fillMatrixFlat(B, TOTAL_SIZE); 
+    fillMatrixFlat(B, TOTAL_SIZE);
 
+    long long seqTime;
     {
-        ScopedTimer timer("Sequential (Reference)");
+        ScopedTimer timer(&seqTime);
         solveSequential(A, B, C_seq, K);
     }
-    cout << "-----------------------------------" << endl;
+    allResults.push_back({ "Sequential (Ref)", seqTime });
+    cout << "Sequential finished: " << seqTime << " ms" << endl;
 
     for (int numThreads : threadTests) {
-        string label = "Parallel Optimized (" + to_string(numThreads) + " threads)";
+        long long parTime;
         {
-            ScopedTimer timer(label);
+            ScopedTimer timer(&parTime);
             parallelManager(A, B, C_par, K, numThreads);
         }
+        string label = "Parallel (" + to_string(numThreads) + " threads)";
+        allResults.push_back({ label, parTime });
+        cout << label << " finished: " << parTime << " ms" << endl;
     }
 
-    cout << "-----------------------------------" << endl;
-    cout << "Test completed." << endl;
+    drawTextGraph(allResults);
 
     return 0;
 }
