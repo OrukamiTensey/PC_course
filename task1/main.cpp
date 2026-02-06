@@ -85,4 +85,18 @@ void solveParallel(const vector<vector<int>>& A,
     for (int i = 0; i < numThreads; ++i)
     {
         int rowEnd = rowStart + rowsPerThread + (i < remainingRows ? 1 : 0);
+        // thread create
+        threads.emplace_back(worker, rowStart, rowEnd, std::ref(A), std::ref(B), std::ref(C), cols, k);
+
+        rowStart = rowEnd;
     }
+
+    // Waiting for threads ending
+    for (auto& t : threads)
+    {
+        if (t.joinable())
+        {
+            t.join();
+        }
+    }
+}
