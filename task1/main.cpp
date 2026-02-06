@@ -25,14 +25,17 @@ private:
 };
 
 // Matrix generation function
-void fillMatrix(vector<vector<int>>& matrix, int rows, int cols) {
+void fillMatrix(vector<vector<int>>& matrix, int rows, int cols)
+{
     random_device rd;
     mt19937 gen(rd());
     uniform_int_distribution<> distrib(1, 100);
 
-    for (int i = 0; i < rows; ++i) {
+    for (int i = 0; i < rows; ++i)
+    {
         matrix[i].resize(cols);
-        for (int j = 0; j < cols; ++j) {
+        for (int j = 0; j < cols; ++j)
+        {
             matrix[i][j] = distrib(gen);
         }
     }
@@ -42,10 +45,44 @@ void fillMatrix(vector<vector<int>>& matrix, int rows, int cols) {
 void solveSequential(const vector<vector<int>>& A,
     const vector<vector<int>>& B,
     vector<vector<int>>& C,
-    int rows, int cols, int k) {
-    for (int i = 0; i < rows; ++i) {
-        for (int j = 0; j < cols; ++j) {
+    int rows, int cols, int k)
+{
+    for (int i = 0; i < rows; ++i)
+    {
+        for (int j = 0; j < cols; ++j)
+        {
             C[i][j] = A[i][j] + k * B[i][j];
         }
     }
 }
+
+// Worker-function
+void worker(int startRow, int endRow,
+    const vector<vector<int>>& A,
+    const vector<vector<int>>& B,
+    vector<vector<int>>& C,
+    int cols, int k) {
+    for (int i = startRow; i < endRow; ++i)
+    {
+        for (int j = 0; j < cols; ++j)
+        {
+            C[i][j] = A[i][j] + k * B[i][j];
+        }
+    }
+}
+
+// 4.  Parallel solution: C = A + k*B
+void solveParallel(const vector<vector<int>>& A,
+    const vector<vector<int>>& B,
+    vector<vector<int>>& C,
+    int rows, int cols, int k, int numThreads)
+{
+    vector<thread> threads;
+    int rowsPerThread = rows / numThreads;
+    int remainingRows = rows % numThreads;
+
+    int rowStart = 0;
+    for (int i = 0; i < numThreads; ++i)
+    {
+        int rowEnd = rowStart + rowsPerThread + (i < remainingRows ? 1 : 0);
+    }
