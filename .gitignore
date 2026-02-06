@@ -1,0 +1,16 @@
+# Visual Studio
+.vs/
+*.sln
+*.vcxproj*
+*.user
+*.filters
+*.obj
+*.exe
+*.pdb
+
+# Build folders
+build/
+out/
+
+# OS
+.DS_Store
