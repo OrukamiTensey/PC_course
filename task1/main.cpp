@@ -100,3 +100,40 @@ void solveParallel(const vector<vector<int>>& A,
         }
     }
 }
+
+int main() {
+    const int ROWS = 2000;
+    const int COLS = 2000;
+    const int K = 5;       
+    const int THREADS = 4; 
+
+    cout << "Matrix size: " << ROWS << "x" << COLS << endl;
+    cout << "Scalar k: " << K << endl;
+    cout << "Threads: " << THREADS << endl;
+    cout << "-----------------------------------" << endl;
+
+    vector<vector<int>> A(ROWS), B(ROWS), C_seq(ROWS), C_par(ROWS);
+
+    cout << "Initializing matrices..." << endl;
+    fillMatrix(A, ROWS, COLS);
+    fillMatrix(B, ROWS, COLS);
+
+    for (int i = 0; i < ROWS; ++i) {
+        C_seq[i].resize(COLS);
+        C_par[i].resize(COLS);
+    }
+
+    // Sequential algorithm
+    {
+        ScopedTimer timer("Sequential");
+        solveSequential(A, B, C_seq, ROWS, COLS, K);
+    }
+
+    // Parallel algorithm
+    {
+        ScopedTimer timer("Parallel");
+        solveParallel(A, B, C_par, ROWS, COLS, K, THREADS);
+    }
+
+    return 0;
+}
