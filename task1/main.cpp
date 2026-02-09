@@ -16,7 +16,7 @@ struct Result
     long long ms;
 };
 
-void drawTextGraph(const vector<Result>& results)
+void drawTextGraph(const vector<Result>& results, string dimension)
 {
     cout << "\n--- Solution Speed Graphic ---\n";
     cout << setw(25) << left << "Method" << " | " << setw(8) << "Time" << " | Histogram" << endl;
@@ -59,7 +59,8 @@ void fillMatrixFlat(vector<int>& matrix, int size)
     random_device rd;
     mt19937 gen(rd());
     uniform_int_distribution<> distrib(1, 100);
-    for (int i = 0; i < size; ++i) {
+    for (int i = 0; i < size; ++i) 
+    {
         matrix[i] = distrib(gen);
     }
 }
@@ -101,40 +102,50 @@ void parallelManager(const vector<int>& A, const vector<int>& B, vector<int>& C,
 
 int main()
 {
-    const int ROWS = 10000;
-    const int COLS = 10000;
-    const int TOTAL_SIZE = ROWS * COLS;
+    vector<int> dimensions = { 5000, 10000, 15000 }; // Different dimensions
     const int K = 5;
     vector<int> threadTests = { 3, 6, 12, 24, 48, 72 };
     vector<Result> allResults;
 
-    cout << "--- Performance Test Start ---" << endl;
-    vector<int> A(TOTAL_SIZE), B(TOTAL_SIZE), C_seq(TOTAL_SIZE), C_par(TOTAL_SIZE);
+    for (int N : dimensions)
+    { 
+        int TOTAL_SIZE = N * N; 
+        vector<Result> allResults;
 
-    cout << "Initializing..." << endl;
-    fillMatrixFlat(A, TOTAL_SIZE);
-    fillMatrixFlat(B, TOTAL_SIZE);
+        cout << "\n>>> TESTING DIMENSION: " << N << "x" << N << " (" << TOTAL_SIZE << " elements)" << endl;
+        cout << "-----------------------------------" << endl;
 
-    long long seqTime;
-    {
-        ScopedTimer timer(&seqTime);
-        solveSequential(A, B, C_seq, K);
-    }
-    allResults.push_back({ "Sequential (Ref)", seqTime });
-    cout << "Sequential finished: " << seqTime << " ms" << endl;
+        vector<int> A(TOTAL_SIZE), B(TOTAL_SIZE), C_seq(TOTAL_SIZE), C_par(TOTAL_SIZE);
 
-    for (int numThreads : threadTests) {
-        long long parTime;
+        cout << "Initializing..." << endl;
+        fillMatrixFlat(A, TOTAL_SIZE);
+        fillMatrixFlat(B, TOTAL_SIZE);
+
+        // Послідовний тест
+        long long seqTime;
         {
-            ScopedTimer timer(&parTime);
-            parallelManager(A, B, C_par, K, numThreads);
+            ScopedTimer timer(&seqTime);
+            solveSequential(A, B, C_seq, K);
         }
-        string label = "Parallel (" + to_string(numThreads) + " threads)";
-        allResults.push_back({ label, parTime });
-        cout << label << " finished: " << parTime << " ms" << endl;
-    }
+        allResults.push_back({ "Sequential (Ref)", seqTime });
+        cout << "Sequential finished: " << seqTime << " ms" << endl;
 
-    drawTextGraph(allResults);
+        // Паралельні тести для поточної розмірності
+        for (int numThreads : threadTests)
+        {
+            long long parTime;
+            {
+                ScopedTimer timer(&parTime);
+                parallelManager(A, B, C_par, K, numThreads);
+            }
+            string label = "Parallel (" + to_string(numThreads) + " threads)";
+            allResults.push_back({ label, parTime });
+            cout << label << " finished: " << parTime << " ms" << endl;
+        }
 
+        drawTextGraph(allResults, to_string(N) + "x" + to_string(N)); 
+    } 
+
+    cout << "\nAll tests completed." << endl;
     return 0;
 }
