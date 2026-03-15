@@ -1,7 +1,9 @@
 ﻿  main.cpp
+D:\semester6labs\PC\task2\main.cpp(45,19): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+D:\semester6labs\PC\task2\main.cpp(52,21): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
   Generating code
-  6 of 107 functions ( 5.6%) were compiled, the rest were copied from previous compilation.
-    0 functions were new in current compilation
-    0 functions had inline decision re-evaluated but remain unchanged
+  110 of 199 functions (55.3%) were compiled, the rest were copied from previous compilation.
+    92 functions were new in current compilation
+    7 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
   task2.vcxproj -> D:\semester6labs\PC\task2\x64\Release\task2.exe
