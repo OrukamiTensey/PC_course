@@ -114,54 +114,26 @@ int main()
 {
     const int SIZE = 10000000;
     vector<int> data(SIZE);
-
-    
     random_device rd;
     mt19937 gen(rd());
-    uniform_int_distribution<> dis(-50, 150); 
-
+    uniform_int_distribution<> dis(-50, 150);
     for (int& x : data) x = dis(gen);
 
-    long long timeSeq = 0;
-    int countSeq = 0, maxSeq = 0;
+    int threadsCount = thread::hardware_concurrency();
+    long long tSeq = 0, tMtx = 0, tAt = 0;
+    int cSeq, mSeq, cMtx, mMtx;
+    atomic<int> cAt(0), mAt(INT_MIN);
 
-    {
-        ScopedTimer timer(&timeSeq);
-        solveSequential(data, countSeq, maxSeq);
-    }
+    // Виконання
+    { ScopedTimer t(&tSeq); solveSequential(data, cSeq, mSeq); }
+    { ScopedTimer t(&tMtx); solveWithMutex(data, cMtx, mMtx, threadsCount); }
+    { ScopedTimer t(&tAt);  solveAtomic(data, cAt, mAt, threadsCount); }
 
-    cout << "--- Sequential Version ---" << endl;
-    cout << "Count (>10): " << countSeq << endl;
-    cout << "Max value (>10): " << maxSeq << endl;
-    cout << "Time: " << timeSeq << " ms" << endl;
-
-    long long timeMtx = 0;
-    int countMtx = 0, maxMtx = 0;
-    int threadsCount = thread::hardware_concurrency(); 
-
-    {
-        ScopedTimer timer(&timeMtx);
-        solveWithMutex(data, countMtx, maxMtx, threadsCount);
-    }
-
-    cout << "\n--- Mutex Version (" << threadsCount << " threads) ---" << endl;
-    cout << "Count (>10): " << countMtx << endl;
-    cout << "Max value (>10): " << maxMtx << endl;
-    cout << "Time: " << timeMtx << " ms" << endl;
-
-    long long timeAtomic = 0; 
-    atomic<int> countAtomic(0); 
-    atomic<int> maxAtomic(INT_MIN); 
-
-    {
-        ScopedTimer timer(&timeAtomic); 
-        solveAtomic(data, countAtomic, maxAtomic, threadsCount); 
-    }
-
-    cout << "\n--- Atomic (CAS) Version ---" << endl; 
-    cout << "Count (>10): " << countAtomic.load() << endl; 
-    cout << "Max value (>10): " << maxAtomic.load() << endl; 
-    cout << "Time: " << timeAtomic << " ms" << endl;
+    // Вивід для звіту
+    cout << "=== COMPARISON RESULTS ===" << endl;
+    cout << "Sequential: " << tSeq << "ms | Count: " << cSeq << " | Max: " << mSeq << endl;
+    cout << "Mutex:      " << tMtx << "ms | Count: " << cMtx << " | Max: " << mMtx << endl;
+    cout << "Atomic/CAS: " << tAt << "ms | Count: " << cAt << " | Max: " << mAt << endl;
 
     return 0;
 }
