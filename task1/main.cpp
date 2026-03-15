@@ -121,7 +121,7 @@ int main()
         fillMatrixFlat(A, TOTAL_SIZE);
         fillMatrixFlat(B, TOTAL_SIZE);
 
-        // Послідовний тест
+        // Sequential test
         long long seqTime;
         {
             ScopedTimer timer(&seqTime);
@@ -130,7 +130,7 @@ int main()
         allResults.push_back({ "Sequential (Ref)", seqTime });
         cout << "Sequential finished: " << seqTime << " ms" << endl;
 
-        // Паралельні тести для поточної розмірності
+        // Parallel test
         for (int numThreads : threadTests)
         {
             long long parTime;
