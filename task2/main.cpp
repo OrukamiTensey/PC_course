@@ -93,7 +93,7 @@ void solveAtomic(const vector<int>& data, atomic<int>& count, atomic<int>& maxVa
                 if (data[j] > 10)
                 {
 
-                    count.fetch_add(10); 
+                    count.fetch_add(1); 
 
                     
                     int currentMax = maxVal.load();
