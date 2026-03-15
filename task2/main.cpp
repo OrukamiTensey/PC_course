@@ -1,8 +1,11 @@
 #include <vector>
 #include <chrono>
 #include <iostream>
+#include <random>
+#include <algorithm>
 
-using namespace std 
+using namespace std;
+
 
 class ScopedTimer
 {
@@ -18,8 +21,44 @@ private:
     chrono::time_point<chrono::high_resolution_clock> start_;
 };
 
+void solveSequential(const vector<int>& data, int& count, int& maxVal)
+{
+    count = 0;
+    maxVal = INT_MIN;
+    for (int x : data)
+    {
+        if (x > 10)
+        {
+            count++;
+            if (x > maxVal) maxVal = x;
+        }
+    }
+}
+
 int main()
 {
-    cout << "Parallel Computing: Task 2 (Variant 17)" << endl;
+    const int SIZE = 10000000;
+    vector<int> data(SIZE);
+
+    
+    random_device rd;
+    mt19937 gen(rd());
+    uniform_int_distribution<> dis(-50, 150); 
+
+    for (int& x : data) x = dis(gen);
+
+    long long timeSeq = 0;
+    int countSeq = 0, maxSeq = 0;
+
+    {
+        ScopedTimer timer(&timeSeq);
+        solveSequential(data, countSeq, maxSeq);
+    }
+
+    cout << "--- Sequential Version ---" << endl;
+    cout << "Count (>10): " << countSeq << endl;
+    cout << "Max value (>10): " << maxSeq << endl;
+    cout << "Time: " << timeSeq << " ms" << endl;
+
     return 0;
 }
