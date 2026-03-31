@@ -85,25 +85,30 @@ void solveAtomic(const vector<int>& data, atomic<int>& count, atomic<int>& maxVa
     {
         threads.emplace_back([&, i]()
             {
-            int start = i * chunkSize;
-            int end = (i == numThreads - 1) ? data.size() : start + chunkSize;
+                int localCount = 0;
+                int localMax = INT_MIN;
+                int start = i * chunkSize;
+                int end = (i == numThreads - 1) ? data.size() : start + chunkSize;
 
-            for (int j = start; j < end; ++j)
-            {
-                if (data[j] > 10)
+                
+                for (int j = start; j < end; ++j)
                 {
-
-                    count.fetch_add(1); 
-
-                    
-                    int currentMax = maxVal.load();
-                    while (data[j] > currentMax &&
-                        !maxVal.compare_exchange_weak(currentMax, data[j]))
+                    if (data[j] > 10)
                     {
-                        
+                        localCount++;
+                        if (data[j] > localMax) localMax = data[j];
                     }
                 }
-            }
+
+                
+                count.fetch_add(localCount);
+
+                int currentMax = maxVal.load();
+                while (localMax > currentMax &&
+                    !maxVal.compare_exchange_weak(currentMax, localMax))
+                {
+                    
+                }
             });
     }
 
@@ -112,28 +117,32 @@ void solveAtomic(const vector<int>& data, atomic<int>& count, atomic<int>& maxVa
 
 int main()
 {
-    const int SIZE = 10000000;
-    vector<int> data(SIZE);
-    random_device rd;
-    mt19937 gen(rd());
-    uniform_int_distribution<> dis(-50, 150);
-    for (int& x : data) x = dis(gen);
-
+    vector<int> sizes = { 1000000, 5000000, 10000000, 25000000, 50000000, 100000000 };
     int threadsCount = thread::hardware_concurrency();
-    long long tSeq = 0, tMtx = 0, tAt = 0;
-    int cSeq, mSeq, cMtx, mMtx;
-    atomic<int> cAt(0), mAt(INT_MIN);
 
-    // Виконання
-    { ScopedTimer t(&tSeq); solveSequential(data, cSeq, mSeq); }
-    { ScopedTimer t(&tMtx); solveWithMutex(data, cMtx, mMtx, threadsCount); }
-    { ScopedTimer t(&tAt);  solveAtomic(data, cAt, mAt, threadsCount); }
+    cout << "Threads used: " << threadsCount << endl;
+    cout << "Size,Sequential(ms),Mutex(ms),Atomic/CAS(ms)" << endl; // Заголовок для CSV
 
-    // Вивід для звіту
-    cout << "=== COMPARISON RESULTS ===" << endl;
-    cout << "Sequential: " << tSeq << "ms | Count: " << cSeq << " | Max: " << mSeq << endl;
-    cout << "Mutex:      " << tMtx << "ms | Count: " << cMtx << " | Max: " << mMtx << endl;
-    cout << "Atomic/CAS: " << tAt << "ms | Count: " << cAt << " | Max: " << mAt << endl;
+    for (int SIZE : sizes)
+    {
+        vector<int> data(SIZE);
+        random_device rd;
+        mt19937 gen(rd());
+        uniform_int_distribution<> dis(-50, 150);
+        for (int& x : data) x = dis(gen);
+
+        long long tSeq = 0, tMtx = 0, tAt = 0;
+        int cSeq, mSeq, cMtx, mMtx;
+        atomic<int> cAt(0), mAt(INT_MIN);
+
+        // Виконання замірів
+        { ScopedTimer t(&tSeq); solveSequential(data, cSeq, mSeq); }
+        { ScopedTimer t(&tMtx); solveWithMutex(data, cMtx, mMtx, threadsCount); }
+        { ScopedTimer t(&tAt);  solveAtomic(data, cAt, mAt, threadsCount); }
+
+        // Вивід у форматі CSV для легкого побудови графіків
+        cout << SIZE << "," << tSeq << "," << tMtx << "," << tAt << endl;
+    }
 
     return 0;
 }
