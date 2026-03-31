@@ -17,7 +17,7 @@ public:
     ~ScopedTimer()
     {
         auto end = chrono::high_resolution_clock::now();
-        *outTime_ = chrono::duration_cast<chrono::milliseconds>(end - start_).count();
+        *outTime_ = chrono::duration_cast<chrono::milliseconds>(end - start_).count();  
     }
 private:
     long long* outTime_;
@@ -50,27 +50,21 @@ void solveWithMutex(const vector<int>& data, int& count, int& maxVal, int numThr
     {
         threads.emplace_back([&, i]()
             {
-            int localCount = 0;
-            int localMax = INT_MIN;
-            int start = i * chunkSize;
-            int end = (i == numThreads - 1) ? data.size() : start + chunkSize;
+                int start = i * chunkSize;
+                int end = (i == numThreads - 1) ? data.size() : start + chunkSize;
 
-            for (int j = start; j < end; ++j)
-            {
-                if (data[j] > 10)
+                for (int j = start; j < end; ++j)
                 {
-                    localCount++;
-                    if (data[j] > localMax) localMax = data[j];
+                    if (data[j] > 10)
+                    {
+                        // захоплення м'ютекса на кожній ітерації
+                        lock_guard<mutex> lock(mtx);
+                        count++;
+                        if (data[j] > maxVal) maxVal = data[j];
+                    }
                 }
-            }
-
-            
-            lock_guard<mutex> lock(mtx);
-            count += localCount;
-            if (localMax > maxVal) maxVal = localMax;
             });
     }
-
     for (auto& t : threads) t.join();
 }
 
