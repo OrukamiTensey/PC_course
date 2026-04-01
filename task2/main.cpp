@@ -68,44 +68,31 @@ void solveWithMutex(const vector<int>& data, int& count, int& maxVal, int numThr
     for (auto& t : threads) t.join();
 }
 
-void solveAtomic(const vector<int>& data, atomic<int>& count, atomic<int>& maxVal, int numThreads)
-{
+void solveAtomic(const vector<int>& data, atomic<int>& count, atomic<int>& maxVal, int numThreads) {
     count = 0;
     maxVal = INT_MIN;
     vector<thread> threads;
     int chunkSize = data.size() / numThreads;
 
-    for (int i = 0; i < numThreads; ++i)
-    {
-        threads.emplace_back([&, i]()
-            {
-                int localCount = 0;
-                int localMax = INT_MIN;
-                int start = i * chunkSize;
-                int end = (i == numThreads - 1) ? data.size() : start + chunkSize;
+    for (int i = 0; i < numThreads; ++i) {
+        threads.emplace_back([&, i]() {
+            int start = i * chunkSize;
+            int end = (i == numThreads - 1) ? data.size() : start + chunkSize;
 
-                
-                for (int j = start; j < end; ++j)
-                {
-                    if (data[j] > 10)
-                    {
-                        localCount++;
-                        if (data[j] > localMax) localMax = data[j];
+            for (int j = start; j < end; ++j) {
+                if (data[j] > 10) {
+                    
+                    count.fetch_add(1);
+
+                    int currentMax = maxVal.load();
+                    while (data[j] > currentMax &&
+                        !maxVal.compare_exchange_weak(currentMax, data[j])) {
+                        
                     }
                 }
-
-                
-                count.fetch_add(localCount);
-
-                int currentMax = maxVal.load();
-                while (localMax > currentMax &&
-                    !maxVal.compare_exchange_weak(currentMax, localMax))
-                {
-                    
-                }
+            }
             });
     }
-
     for (auto& t : threads) t.join();
 }
 
