@@ -50,8 +50,44 @@ public:
     }
 
     // Прототипи інших публічних методів, які ми деталізуємо в наступних комітах
+    // Реалізація безпечного додавання задач (Варіант 17)
     template <typename TaskF, typename... Args>
-    size_t add_task(TaskF&& task, Args&&... parameters);
+    size_t add_task(TaskF&& task, Args&&... parameters) {
+        // 1. Генеруємо унікальний ID для нової задачі
+        size_t task_id = ++m_task_id_counter;
+
+        {
+            std::unique_lock<std::mutex> lock(m_pool_mutex);
+            // Якщо пул закривається або закритий, не приймаємо задачі
+            if (m_terminated) {
+                m_result_manager.register_task(task_id);
+                m_result_manager.update_status(task_id, TaskStatus::Rejected);
+                m_rejected_tasks_count++; // Збільшуємо лічильник відкинутих задач для метрик
+                return task_id;
+            }
+        }
+
+        // 2. Реєструємо задачу в менеджері результатів
+        m_result_manager.register_task(task_id);
+
+        // 3. Зв'язуємо функцію з її аргументами за допомогою std::bind або лямбди
+        auto bound_task = std::bind(std::forward<TaskF>(task), std::forward<Args>(parameters)...);
+
+        // 4. Спроба проштовхнути задачу в обмежену чергу
+        bool pushed = m_tasks.try_push(task_id, bound_task);
+
+        if (!pushed) {
+            // Якщо черга заповнена (макс 20), задача відкидається відповідно до варіанту
+            m_result_manager.update_status(task_id, TaskStatus::Rejected);
+            m_rejected_tasks_count++; // Фіксуємо відкинуту задачу для майбутніх метрик пункту 6
+        }
+        else {
+            // Якщо задача успішно додана, сповіщаємо один вільний потік
+            m_task_waiter.notify_one();
+        }
+
+        return task_id; // Повертаємо ID користувачу
+    }
 
     void terminate(bool immediate = false);
     void print_metrics() const;
@@ -124,4 +160,5 @@ private:
     std::atomic<bool> m_immediate_shutdown{ false };
 
     std::atomic<size_t> m_task_id_counter;
+    std::atomic<size_t> m_rejected_tasks_count{ 0 }; 
 };
