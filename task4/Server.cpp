@@ -199,4 +199,68 @@ void handleClient(int clientSocket) {
 int main() {
 #ifdef _WIN32
     WSADATA wsaData;
-    if (
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+        cerr << "[Error] WSAStartup failed." << endl;
+        return 1;
+    }
+#endif
+
+    int serverSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (serverSocket < 0) {
+        cerr << "[Error] Socket creation failed." << endl;
+#ifdef _WIN32
+        WSACleanup();
+#endif
+        return 1;
+    }
+
+    sockaddr_in serverAddr;
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_addr.s_addr = INADDR_ANY;
+    serverAddr.sin_port = htons(PORT);
+
+    if (::bind(serverSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
+        cerr << "[Error] Bind failed on port " << PORT << endl;
+#ifdef _WIN32
+        closesocket(serverSocket);
+        WSACleanup();
+#else
+        close(serverSocket);
+#endif
+        return 1;
+    }
+
+    if (listen(serverSocket, SOMAXCONN) < 0) {
+        cerr << "[Error] Listen failed." << endl;
+#ifdef _WIN32
+        closesocket(serverSocket);
+        WSACleanup();
+#else
+        close(serverSocket);
+#endif
+        return 1;
+    }
+
+    cout << "[Server] Active and listening on port " << PORT << "..." << endl;
+
+    while (true) {
+        sockaddr_in clientAddr;
+        int clientAddrLen = sizeof(clientAddr);
+        int clientSocket = accept(serverSocket, (struct sockaddr*)&clientAddr, &clientAddrLen);
+        if (clientSocket < 0) {
+            cerr << "[Warning] Accept failed." << endl;
+            continue;
+        }
+
+        thread clientThread(handleClient, clientSocket);
+        clientThread.detach();
+    }
+
+#ifdef _WIN32
+    closesocket(serverSocket);
+    WSACleanup();
+#else
+    close(serverSocket);
+#endif
+    return 0;
+}

@@ -173,6 +173,10 @@ int main() {
     else {
         cerr << "[Client Error] Failed to retrieve results." << endl;
     }
+    cout << "\n[Client] Press Enter to exit..." << endl;
+    cin.clear();            
+    cin.ignore(100, '\n');  
+    cin.get();
 
 #ifdef _WIN32
     closesocket(clientSocket);
