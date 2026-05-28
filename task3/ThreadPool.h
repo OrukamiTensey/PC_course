@@ -89,7 +89,39 @@ public:
         return task_id; // ѕовертаЇмо ID користувачу
     }
 
-    void terminate(bool immediate = false);
+    // –еал≥зац≥€ завершенн€ роботи пулу поток≥в (плавне або моментальне)
+    void terminate(bool immediate = false) {
+        {
+            std::unique_lock<std::mutex> lock(m_pool_mutex);
+
+            // якщо пул вже зупинено або в процес≥ зупинки Ч н≥чого не робимо
+            if (m_terminated) return;
+
+            m_terminated = true;
+            m_immediate_shutdown = immediate;
+
+            // якщо режим моментальний, повн≥стю очищаЇмо чергу невиконаних задач
+            if (m_immediate_shutdown) {
+                m_tasks.clear();
+            }
+        }
+
+        // ѕрокидаЇмо абсолютно вс≥ потоки, €к≥ могли застр€гти на умовн≥й зм≥нн≥й чи пауз≥
+        m_task_waiter.notify_all();
+
+        // ќч≥куЇмо на завершенн€ виконанн€ кожного з 6 поток≥в-роб≥тник≥в
+        for (std::thread& worker : m_workers) {
+            if (worker.joinable()) {
+                worker.join();
+            }
+        }
+
+        // ќчищаЇмо вектор поток≥в п≥сл€ њх усп≥шного завершенн€
+        std::unique_lock<std::mutex> lock(m_pool_mutex);
+        m_workers.clear();
+        m_initialized = false;
+    }
+
     void print_metrics() const;
     TaskStatus get_task_status(size_t id) const { return m_result_manager.get_status(id); }
 
