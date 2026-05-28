@@ -122,12 +122,58 @@ public:
         m_initialized = false;
     }
 
-    void print_metrics() const;
+    // Розрахунок та виведення метрик у консоль відповідно до Пункту 6 методички
+    void print_metrics() const {
+        std::unique_lock<std::mutex> lock(m_pool_mutex);
+
+        std::cout << "\n=============================================\n";
+        std::cout << "   СТАТИСТИКА ТА МЕТРИКИ (ВАРІАНТ №17)\n";
+        std::cout << "=============================================\n";
+
+        // 1. Кількість створених потоків
+        std::cout << "* Кількість створених робочих потоків: 6\n"; 
+
+            // 2. Середній час знаходження кожного потоку в стані очікування
+            std::cout << "* Середній час очікування потоків (воркерів):\n"; 
+            double total_avg = 0.0;
+        for (size_t i = 0; i < 6; ++i) {
+            double avg_wait = 0.0;
+            if (i < m_worker_wait_counts.size() && m_worker_wait_counts[i] > 0) {
+                avg_wait = static_cast<double>(m_worker_wait_durations[i]) / m_worker_wait_counts[i];
+            }
+            std::cout << "  - Потік #" << i << ": " << avg_wait << " мс (запитів очікування: " << m_worker_wait_counts[i] << ")\n";
+            total_avg += avg_wait;
+        }
+        std::cout << "  -> Загальний середній час очікування пулу: " << (total_avg / 6.0) << " мс\n";
+
+        // 3. Мінімальний та максимальний час заповненості черги
+        long long min_full_time = 0;
+        long long max_full_time = 0;
+        m_tasks.get_fullness_metrics(min_full_time, max_full_time); 
+            std::cout << "* Час, поки черга була повністю заповнена (ліміт 20 задач):\n"; 
+            std::cout << "  - Мінімальний час: " << min_full_time << " мс\n"; 
+            std::cout << "  - Максимальний час: " << max_full_time << " мс\n"; 
+
+            // 4. Кількість відкинутих задач
+            std::cout << "* Кількість відкинутих задач (через переповнення): " << m_rejected_tasks_count << "\n"; 
+            std::cout << "=============================================\n\n";
+    }
     TaskStatus get_task_status(size_t id) const { return m_result_manager.get_status(id); }
 
 private:
+    std::vector<long long> m_worker_wait_durations; // Загальний час очікування для кожного воркера (в мс)
+    std::vector<size_t> m_worker_wait_counts;       // Кількість разів, коли воркер ставав на очікування
     // Головний робочий цикл кожного з 6 потоків-воркерів
     void routine(size_t worker_id) {
+        // Ініціалізуємо вектори метрик для поточного воркера під м'ютексом
+        {
+            std::unique_lock<std::mutex> lock(m_pool_mutex);
+            if (m_worker_wait_durations.size() <= worker_id) {
+                m_worker_wait_durations.resize(6, 0);
+                m_worker_wait_counts.resize(6, 0);
+            }
+        }
+
         while (true) {
             BoundedTaskQueue::TaskType current_task;
             bool task_acquired = false;
@@ -135,29 +181,32 @@ private:
             {
                 std::unique_lock<std::mutex> lock(m_pool_mutex);
 
-                // Умова очікування: пул на паузі АБО (черга порожня і пул продовжує роботу)
+                // Фіксуємо час початку очікування
+                auto wait_start = std::chrono::steady_clock::now();
+                m_worker_wait_counts[worker_id]++;
+
                 m_task_waiter.wait(lock, [this, &task_acquired, &current_task]() {
-                    // Якщо пул терміновано, і ми або зупиняємось негайно, або черга вже порожня
                     if (m_terminated && (m_immediate_shutdown || m_tasks.empty())) {
                         return true;
                     }
-                    // Якщо пул не на паузі, пробуємо взяти задачу
                     if (!m_paused) {
                         task_acquired = m_tasks.pop(current_task);
                     }
-                    // Прокидаємо потік, якщо є задача, або якщо пул зупиняють
                     return m_terminated || task_acquired;
                     });
 
-                // Перевірка умов виходу з потоку
+                // Фіксуємо час закінчення очікування і додаємо до загальної суми воркера
+                auto wait_end = std::chrono::steady_clock::now();
+                auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(wait_end - wait_start).count();
+                m_worker_wait_durations[worker_id] += duration;
+
                 if (m_terminated && !task_acquired) {
                     if (m_immediate_shutdown || m_tasks.empty()) {
-                        return; // Потік завершує свою роботу
+                        return;
                     }
                 }
             }
 
-            // Якщо задачу успішно взято з черги — виконуємо її поза м'ютексом пулу
             if (task_acquired) {
                 size_t task_id = current_task.first;
                 auto& task_function = current_task.second;
@@ -165,14 +214,11 @@ private:
                 m_result_manager.update_status(task_id, TaskStatus::Running);
 
                 try {
-                    task_function(); // Виконання безпосередньо самої задачі
+                    task_function();
                     m_result_manager.update_status(task_id, TaskStatus::Completed);
                 }
-                catch (const std::exception& e) {
-                    m_result_manager.set_error(task_id, e.what());
-                }
                 catch (...) {
-                    m_result_manager.set_error(task_id, "Unknown exception occurred");
+                    m_result_manager.set_error(task_id, "Exception in task execution");
                 }
             }
         }
