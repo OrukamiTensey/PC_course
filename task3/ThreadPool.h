@@ -116,14 +116,11 @@ public:
             }
         }
 
-        // Очищаємо вектор потоків після їх успішного завершення
         std::unique_lock<std::mutex> lock(m_pool_mutex);
         m_workers.clear();
         m_initialized = false;
     }
 
-    // Розрахунок та виведення метрик у консоль відповідно до Пункту 6 методички
-    // Performance metrics report (Methodology Clause 6 & 7)
     void print_metrics() const {
         std::unique_lock<std::mutex> lock(m_pool_mutex);
 

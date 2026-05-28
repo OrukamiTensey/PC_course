@@ -1,7 +1,7 @@
 ﻿  main.cpp
   Generating code
-  26 of 806 functions ( 3.2%) were compiled, the rest were copied from previous compilation.
-    1 functions were new in current compilation
-    1 functions had inline decision re-evaluated but remain unchanged
+  2 of 806 functions ( 0.2%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
+    2 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
   task3.vcxproj -> D:\semester6labs\PC\task3\x64\Release\task3.exe
